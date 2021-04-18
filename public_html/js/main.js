@@ -24,11 +24,11 @@ const textUtil = new function(){
         return char === '\\';
     };
     this.tab = function(indent){
-        return ' ';//.repeat((indent - 1)*4);
+        return (indent > 0)? ' '.repeat(indent*4) : "";
     };
 };
 
-const tokenize = (text) =>{//{"fields":[1,2,3],"thing1":67,"thing2":"mopey"}
+const tokenize = (text) => {
     let tokens = [];
     let skip = false;
     let escape = 0;
@@ -53,14 +53,31 @@ const tokenize = (text) =>{//{"fields":[1,2,3],"thing1":67,"thing2":"mopey"}
     if(j !== i){
         tokens.push({'t':[text.substring(j, i)], 'ind':0});
     }
-    //console.log(tokens);
     return tokens;
 };
-const mergeComma = (tokens) => {
+const setIndents = (tokens) => {
+    let indent = 0;
+    for (var i = 0; i < tokens.length; i++){
+        let curr = tokens[i];
+        if(textUtil.isOpener(curr.t[0])){
+            tokens[i].ind = indent;
+            indent++;
+        }
+        else if(textUtil.isCloser(curr.t[0])){
+            indent--;
+            tokens[i].ind = indent;
+        }
+        else{
+            tokens[i].ind = indent;
+        }
+    }
+    return tokens;
+};
+const merge = (tokens) => {
     let newTokens = [];
-    let j = 0;
     let prev = tokens[0];
-    newTokens[0] = prev;
+	let j = 0;
+    newTokens[j++] = prev;
     for (var i = 1; i < tokens.length; i++){
         let curr = tokens[i];
         if(curr === undefined || curr.t[0].trim().length === 0){
@@ -69,85 +86,57 @@ const mergeComma = (tokens) => {
         if(curr.t[0] === ','){
             prev.t.push(curr.t[0]);
         }
-        else{
-            newTokens[j] = curr;
-            prev = curr;
-            j++;
-        }
-    }
-    return newTokens;
-};
-const setIndents = (tokens) =>{//{"fields":[1,2,3],"thing1":67,"thing2":"mopey"}
-    let newTokens = [];
-    let indent = 1;
-    for (var i = 0; i < tokens.length; i++){
-        let curr = tokens[i];
-        if(textUtil.isOpener(curr.t[0])){
-            tokens[i].ind = indent;
-            indent++;
-        }
-        else if(textUtil.isCloser(curr)){
-            indent--;
-            tokens[i].ind = indent;
-        }
-        else{
-            tokens[i].ind = indent;
-        }
-    }
-    return newTokens;
-};
-const mergeOChar = (tokens) =>{
-    let newTokens = [];
-    let j = 0;
-    let prev = tokens[0];
-    newTokens[0] = prev;
-    for (var i = 1; i < tokens.length; i++){
-        let curr = tokens[i];
-        console.log("curr: "+curr.t);
-        if(i > 0 && curr.t[0] === '{' && !textUtil.isDelimiter(prev.t.slice(-1)[0])){
+		else if(
+			curr.t[0] === '{' && 
+			!textUtil.isDelimiter(prev.t[prev.t.length - 1])
+		){
             prev.t.push(curr.t[0]);
-            console.log("^^");
         }
         else{
-            newTokens[j] = curr;
-            prev = curr;
-            j++;
-            console.log("--");
+            newTokens[j++] = curr;
         }
+		prev = curr;
     }
     return newTokens;
 };
-const buildStrings = (tokens) =>{//{"fields":[1,2,3],"thing1":67,"thing2":"mopey"}
+const buildStrings = (tokens) => {
     for (var i = 0; i < tokens.length; i++){
         let curr = tokens[i];
         tokens[i] = textUtil.tab(curr.ind) + curr.t.join("");
     }
     return tokens;
 };
-const handleText = () =>{
+const handleText = () => {
     let text = document.getElementById('textIn').value;
     text = text.replaceAll(/\r?\n|\r/g, "");
+	document.getElementById("escapeOut").value = escapeText(text);
+	
     let tokens = tokenize(text);
     if(tokens.length){
-//        tokens = mergeComma(tokens);
-//        tokens = setIndents(tokens);
-//        tokens = mergeOChar(tokens);
-        tokens = buildStrings(tokens);
+        tokens = buildStrings(
+			merge(
+				setIndents(tokens)
+			)
+		);
     }
-    console.log("DONE");
-    console.log(tokens.join('\n'));
     document.getElementById("textOut").value = tokens.join('\n');
 };
+const escapeText = (text) => {
+	return text.replaceAll(/["]/g, '\\"')
+}
+const clearFields = () => {
+	document.getElementById("textIn").value = "";
+	document.getElementById("escapeOut").value = "";
+	document.getElementById("textOut").value = "";
+}
 /*
-{"menu": {
-  "id": "file",
-  "value": "File",
-  "popup": {
-    "menuitem": [
-      {"value": "New", "onclick": "CreateNewDoc()"},
-      {"value": "Open", "onclick": "OpenDoc()"},
-      {"value": "Close", "onclick": "CloseDoc()"}
-    ]
-  }
-}}
+Test Data Short:
+
+{"fields":[1,2,3],"thing1":{"innerThing":23},"thing2":"mopey"}
+
+Test Data Long:
+
+{"menu": {"id": "file","value": "File","popup": {"menuitem": [{"value": "New", 
+"onclick": "CreateNewDoc()"},{"value": "Open", "onclick": "OpenDoc()"},{"value": 
+"Close", "onclick": "CloseDoc()"} ]}}}
  */
