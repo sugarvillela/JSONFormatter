@@ -3,62 +3,131 @@
     <head>
         <meta charset="utf-8">
         <meta http-equiv="x-ua-compatible" content="ie=edge">
-        <title></title>
+        <title>JSONFormatter</title>
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-
-        <link rel="apple-touch-icon" href="apple-touch-icon.png">
         
         <script src="js/main.js"></script>
-        <!-- Place favicon.ico in the root directory -->
-
-<!--        <link rel="stylesheet" href="css/normalize.css">
-        <link rel="stylesheet" href="css/main.css">
-        <script src="js/vendor/modernizr-2.8.3.min.js"></script>-->
         <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
-
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+		<style>
+			body{
+				background-color: #080825;
+			}
+			.highlight{
+				color: yellow;
+				text-shadow: 2px 2px;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			.charDelim{
+				color: white;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			/* new */
+			.err{
+				color: red;
+				text-shadow: 2px 2px;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			.charKey{
+				color: #00a1a1;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			.charValue{
+				color: #82c59c;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			.charNumValue{
+				color: #fff700;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			.charBoolValue{
+				color: #bfa3a3;
+				background-color: inherit;
+				min-width: 0;
+				border: none;
+				display: inline;
+			}
+			textarea#textIn{
+				color: white;
+				background: black;
+				caret-color: red;
+			}
+			/* new 2 */
+			.displayArea{
+				border: 1px solid #a4a5a6;
+				border-radius: 3px;
+				margin: 0 15px;
+			}
+			.smallText{
+				color: white;
+				cursor: default;
+				display: inline;
+			}
+			h4{
+				color: white;
+			}
+			label{
+				color: #8bb9dd;
+			}
+		</style>
     </head>
     <body>
         <div class="container-fluid">
           <div class="row">
-            <div class="col-xs-12">
-              <div class="form-group ">
-                <h4>Raw JSON</h4>
-                <label>Paste Here... </label>
-                <textarea class="form-control m20x p20x" id="textIn" rows="12" cols="80" ></textarea>
-              </div>
-              <input type="submit" value="Format!" onclick="handleText()"/>
-            </div>  
+            <div class="col-xs-3">
+				<h4 title="Formatter/Cleaner with Local State" >JSON Formatter</h4>
+            </div>
+            <div class="col-xs-3">
+				<input type="submit" title="Clear Window" value="&#128465" onclick="clearFields()"/>
+				<input type="submit" title="Shrink Window" value="-" onclick="AppState.toggleHide()" id="buttonHide" />
+            </div>
+            <div class="col-xs-3">
+				<input type="submit" title="Save" value="&#128190;State" onclick="stateSave()"/>
+				<input type="submit" title="Back" value="&lsaquo;" onclick="stateBack()"/>
+				<input type="submit" title="Forward" value="&rsaquo;" onclick="stateForward()"/>
+				<input type="submit" title="Top" value="&rsaquo;&rsaquo;" onclick="stateTop()"/>
+				<input type="submit" title="Pop" value="*" onclick="statePop()"/>
+				<div class="smallText" title="Current Position" id="stateNum" ></div>
+            </div>
+            <div class="col-xs-3">
+				<input type="submit" title="Copy Original" value="&#128203;Orig" onclick="origToClipboard()"/>
+				<input type="submit" title="Copy Formatted" value="&#128203;Formatted" onclick="formattedToClipboard()"/>
+				<input type="submit" title="Copy with Quotes Escaped" value="&#128203;Escaped" onclick="escapedToClipboard()"/>
+            </div>
           </div>
         </div>
         <div class="container-fluid">
           <div class="row">
             <div class="col-xs-12">
               <div class="form-group ">
-                <h4>Formatted JSON</h4>
-                <label>Copy From Here... </label>
-                <textarea class="form-control m20x p20x" id="textOut" rows="12" cols="80"></textarea>
+				<label title="Control+V Only" >Paste Here... </label>
+                <textarea class="form-control m20x p20x" id="textIn" rows="10" cols="80" onpaste="Parser.handleText()" onkeyup="Parser.handleText()"></textarea>
               </div>
-              <input type="submit" value="Clear" onclick="handleSets()"/>
             </div>  
           </div>
         </div>
-<!--        <script src="https://code.jquery.com/jquery-1.12.0.min.js"></script>
-        <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.12.0.min.js"><\/script>')</script>
-        <script src="js/plugins.js"></script>
--->     
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
-        <!-- Google Analytics: change UA-XXXXX-X to be your site's ID. -->
-        <script>
-//            (function(b,o,i,l,e,r){b.GoogleAnalyticsObject=l;b[l]||(b[l]=
-//            function(){(b[l].q=b[l].q||[]).push(arguments)});b[l].l=+new Date;
-//            e=o.createElement(i);r=o.getElementsByTagName(i)[0];
-//            e.src='https://www.google-analytics.com/analytics.js';
-//            r.parentNode.insertBefore(e,r)}(window,document,'script','ga'));
-//            ga('create','UA-XXXXX-X','auto');ga('send','pageview');
-        </script>
+        <div class="container-fluid">
+          <div class="row">
+			<div class="displayArea" id="formatOut"></div>
+		  </div>
+        </div>
     </body>
 </html>
