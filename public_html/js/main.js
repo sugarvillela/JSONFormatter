@@ -1,127 +1,10 @@
-const AppState = (() => {
-	const currTokens = [];	// token objects
-	const state = [];		// strings
-	let errState = false;
-	let fixedEqualSign = false;
-	let hideWindow = false;
-	let pointer = 0;
-	
-	const haveState = () => state.length > 0;
-	
-	const dispState = () => {
-		document.getElementById("stateNum").innerHTML = `${pointer+1}/${state.length}`;
-	}
-	const incPointer = () => {
-		pointer = Math.min(pointer + 1, state.length - 1);
-		dispState();
-	}
-	const decPointer = () => {
-		pointer = Math.max(pointer - 1, 0);
-		dispState();
-	}
-	const push = (text) => { 
-		state.push(text);
-		pointer = state.length - 1;
-		dispState();
-	}
-	const back = () => { 
-		decPointer();
-		return state[pointer];
-	}
-	const forward = () => { 
-		incPointer();
-		return state[pointer];
-	}
-	const top = () => { 
-		pointer = state.length - 1;
-		dispState();
-		return state[pointer];
-	}
-	const pop = () => {
-		state.pop();
-		if(state.length){
-			return top();
-		}
-		else {
-			return "";
-		}
-	}
-	const setErr = (newState) => errState = newState;
-	const setFixedEqualSign = (newState) => errState = newState;
-	const isErr = () => errState;
-	
-	toggleHide = () => {
-		hideWindow = !hideWindow;
-		
-		document.getElementById("buttonHide").value = (hideWindow)? "+":"-";
-		document.getElementById("textIn").style.maxHeight = (hideWindow)? "20px":"500px";
-	}
-	
-	return {
-		haveState: () => haveState(),
-		push: (text) => push(text),
-		back: () => back(),
-		forward: () => forward(),
-		top: () => top(),
-		pop: () => pop(),
-		setErr: (newState) => errState = newState,
-		isErr: () => errState,
-		setFixedEqualSign: (newState) => fixedEqualSign = newState,
-		fixedEqualSign: () => fixedEqualSign,
-		toggleHide: () => toggleHide()
-	};
-})();
-
-const DomProxy = (() => {
-	const appendText = (domParent, token, isEndline) => {
-		let domChild = document.createElement("DIV");
-		
-		if(token.isErr) {
-			domChild.classList.add("err");
-		}
-		else {
-			domChild.classList.add(token.className);
-		}
-		
-		domChild.addEventListener("click", token.onClick);
-		token.domObject = domChild;
-		
-		if(token.checkEndline && isEndline){
-			domParent.appendChild(document.createElement("BR"));
-			domChild.innerHTML = FormatUtil.tabHtml(token.indent) + token.value;
-			
-			token.formatted = "\n" + FormatUtil.tabSpace(token.indent) + token.value;
-		}
-		else{
-			domChild.innerHTML = token.value;
-			
-			token.formatted = token.value;
-		}
-		domParent.appendChild(domChild);
-	};
-	const toClipboard = (text) => {
-		let temp = document.createElement("textarea");
-		document.body.appendChild(temp);
-		temp.value = text;
-		temp.select();
-		document.execCommand("copy");
-		document.body.removeChild(temp);
-		document.getElementById('textIn').focus();
-	};
-	
-	return {
-		appendText: (domParent, token, isEndline) => appendText(domParent, token, isEndline),
-		toClipboard: (text) => toClipboard(text)
-	}
-})();
-
 const TokenFactory = (() => {
 	let uq = 1;
 	
-	const getUq = () => {
+	/*private*/ const getUq = () => {
 		return ++uq;
 	};
-	const getProto = (setValue, linkFunction) => {
+	/*private*/ const getProto = (setValue, linkFunction) => {
 		let id = getUq();
 		
 		return {
@@ -220,6 +103,212 @@ const TokenFactory = (() => {
 	};
 })();
 
+const Flags = (() => {
+	let errState = false;
+	let fixedEqualSign = false;
+	let hideWindow = false;
+	let powerOn = true;
+	
+	const toggleHide = () => {
+		hideWindow = !hideWindow;
+		DomProxy.renderHideButton(hideWindow);
+		DomProxy.hideWindow(hideWindow);
+	}
+	const togglePowerButton = () => {
+		powerOn = !powerOn;
+		DomProxy.renderPowerButton(powerOn);
+		if(!powerOn){
+			DomProxy.setOrigTextValue(AppState.getOrigText());
+		}
+		Parser.parse();
+	}
+	
+	return {
+		setErr: (newState) => errState = newState,
+		isErr: () => errState,
+		setFixedEqualSign: (newState) => fixedEqualSign = newState,
+		isFixedEqualSign: () => fixedEqualSign,
+		toggleHide: () => toggleHide(),
+		togglePowerButton: () => togglePowerButton(),
+		isPowerOn: () => powerOn
+	};
+})();
+
+const Stack = (() => {
+	return {
+		
+	};
+})();
+
+const AppState = (() => {
+	/*private*/ newStateObject = (text) => {
+		return {
+			text: text,
+			origText: ""
+		}
+	}
+	
+	const stack = [];		// strings
+	let currTokens = [];	// token objects
+	//let origText = "";
+	let pointer = 0;
+	let currState = newStateObject("");
+	
+	/*private*/ const incPointer = () => {
+		pointer = Math.min(pointer + 1, stack.length - 1);
+		DomProxy.renderPointerPos(pointer, stack.length);
+	}
+	/*private*/ const decPointer = () => {
+		pointer = Math.max(pointer - 1, 0);
+		DomProxy.renderPointerPos(pointer, stack.length);
+	}
+	const push = (text) => { 
+		stack.push(newStateObject(text));
+		pointer = stack.length - 1;
+		DomProxy.renderPointerPos(pointer, stack.length);
+	}
+	const back = () => { 
+		decPointer();
+		return stack[pointer].text;
+	}
+	const forward = () => { 
+		incPointer();
+		return stack[pointer].text;
+	}
+	const top = () => { 
+		pointer = stack.length - 1;
+		DomProxy.renderPointerPos(pointer, stack.length);
+		return stack[pointer].text;
+	}
+	const pop = () => {
+		stack.pop();
+		if(stack.length){
+			return top();
+		}
+		else {
+			return "";
+		}
+	}
+	
+	return {
+		push: (text) => push(text),
+		back: () => back(),
+		forward: () => forward(),
+		top: () => top(),
+		pop: () => pop(),
+		haveState: () => stack.length > 0,
+		setTokens: (newTokens) => currTokens = newTokens,
+		haveTokens: () => currTokens.length > 0,
+		getTokens: () => currTokens,
+		setOrigText: (text) => currState.origText = text,
+		getOrigText: () => currState.origText
+	};
+})();
+
+const DomProxy = (() => {
+	const appendText = (domParent, token, isEndline) => {
+		let domChild = document.createElement("DIV");
+		
+		if(token.isErr) {
+			domChild.classList.add("err");
+		}
+		else {
+			domChild.classList.add(token.className);
+		}
+		
+		domChild.addEventListener("click", token.onClick);
+		token.domObject = domChild;
+		
+		if(token.checkEndline && isEndline){
+			domParent.appendChild(document.createElement("BR"));
+			domChild.innerHTML = FormatUtil.tabHtml(token.indent) + token.value;
+			
+			token.formatted = "\n" + FormatUtil.tabSpace(token.indent) + token.value;
+		}
+		else{
+			domChild.innerHTML = token.value;
+			
+			token.formatted = token.value;
+		}
+		domParent.appendChild(domChild);
+	};
+	const getOrigTextValue = () => {
+		return document.getElementById('origText').value;
+	}
+	const setOrigTextValue = (text) => {
+		document.getElementById('origText').value = text;
+	}
+	const getFormatDiv = () => {
+		return document.getElementById("formatOut");
+	}
+	const clearFields = () => {
+		document.getElementById("origText").value = "";
+		document.getElementById("formatOut").innerHTML = "";
+	}
+	const renderObjSize = (objSize) => {
+		let d = document.getElementById('objSize').innerHTML = (objSize)? `Size: ${objSize}` : "";
+	}
+	const renderPointerPos = (pointer, length) => {
+		document.getElementById("pointerPos").innerHTML = `${pointer+1}/${length}`;
+	}
+	const renderHideButton = (hide) => {
+		document.getElementById("buttonHide").value = (hide)? "+":"-";
+	}
+	const renderPowerButton = (powerOn) => {
+		const b = document.getElementById("buttonPower");
+		b.value = (powerOn)? `\u{23FB}` : `\u{23FC}`;
+		b.className = (powerOn)? "powerOn" : "powerOff";
+	}
+	const hideWindow = (hide) => {
+		document.getElementById("origText").style.maxHeight = (hide)? "20px":"500px";
+	}
+	/*private*/ const toClipboard = (text) => {
+		let temp = document.createElement("textarea");
+		document.body.appendChild(temp);
+		temp.value = text;
+		temp.select();
+		document.execCommand("copy");
+		document.body.removeChild(temp);
+		document.getElementById('origText').focus();
+	};
+	const origToClipboard = () => {
+		document.getElementById('origText').select();
+		document.execCommand("copy");
+	}
+
+	const escapedToClipboard = () => {
+		let text = getOrigTextValue();
+		text = text.replaceAll(/["]/g, '\\"');
+		toClipboard(text);
+	}
+
+	const formattedToClipboard = () => {
+		if(AppState.haveTokens()){
+			let formatted = [];
+			for(const token of AppState.getTokens()){
+				formatted.push(token.formatted);
+			}
+			toClipboard(formatted.join(""));
+		}
+	}
+	
+	return {
+		appendText: (domParent, token, isEndline) => appendText(domParent, token, isEndline),
+		getOrigTextValue: () => getOrigTextValue(),
+		setOrigTextValue: (text) => setOrigTextValue(text),
+		getFormatDiv: () => getFormatDiv(),
+		clearFields: () => clearFields(),
+		renderObjSize: (newCount) => renderObjSize(newCount),
+		renderPointerPos: (pointer, length) => renderPointerPos(pointer, length),
+		renderHideButton: (hide) => renderHideButton(hide),
+		renderPowerButton: (powerOn) => renderPowerButton(powerOn),
+		hideWindow: (hide) => hideWindow(hide),
+		origToClipboard: () => origToClipboard(),
+		escapedToClipboard: () => escapedToClipboard(),
+		formattedToClipboard: () => formattedToClipboard()
+	}
+})();
+
 const TextUtil = (() => {
     const readCharacter = (character, id) => {
         switch(character){
@@ -305,10 +394,11 @@ const TextUtil = (() => {
 			}
 			else{
 				dest.push(":");
-				AppState.setFixedEqualSign(true);
+				Flags.setFixedEqualSign(true);
 			}
 		}
-		return (AppState.fixedEqualSign())? dest.join(""): text;
+
+		return (Flags.isFixedEqualSign())? dest.join(""): text;
 	};
 	
 	return {
@@ -328,6 +418,10 @@ const TextUtil = (() => {
 
 const FormatUtil = (() => {
 	const TAB_WIDTH = 4;
+	const CHARS = {
+		"{" : "}",
+		"[" : "]"
+	};
 	
     const tabHtml = (indent) => {
         return (indent > 0)? '&nbsp;'.repeat(indent*TAB_WIDTH) : "";
@@ -352,15 +446,8 @@ const FormatUtil = (() => {
 			}
 		}
 	};
-	const isValidCounterpart = (opener, closer) => {
-		switch(opener){
-			case '{':
-				return closer === '}';
-			case '[':
-				return closer === ']';
-			default:
-				return false;
-		}
+	/*private*/ const isValidCounterpart = (opener, closer) => {
+		return closer === CHARS[opener];
 	};
 	const setCounterparts = (tokens) => {
 		const stack = [];
@@ -382,19 +469,19 @@ const FormatUtil = (() => {
 					else{
 						opener.isErr = true;
 						closer.isErr = true;
-						AppState.setErr(true);
+						Flags.setErr(true);
 					}
 				}
 				else{
 					closer.isErr = true;
-					AppState.setErr(true);
+					Flags.setErr(true);
 				}
 			}
 		}
 	};
-	const drawFormatted = (tokens) => {
+	const drawFormattedHtml = (tokens) => {
 		let isEndline = false;
-		let div = document.getElementById("formatOut");
+		let div = DomProxy.getFormatDiv();
 		div.innerHTML = "";
 		
 		for (var i = 0; i < tokens.length; i++){
@@ -403,9 +490,9 @@ const FormatUtil = (() => {
 		}
 	};
 	const linkView = (id) => {
-		if(!AppState.isErr()){
+		if(!Flags.isErr()){
 			unlinkView();
-			for(const token of AppState.currTokens){
+			for(const token of AppState.getTokens()){
 				if(token.id == id){
 					token.domObject.setAttribute("class", "");
 					token.domObject.classList.add("highlight");
@@ -418,7 +505,7 @@ const FormatUtil = (() => {
 		}
 	};
 	const unlinkView = () => {
-		for(const token of AppState.currTokens){
+		for(const token of AppState.getTokens()){
 			if(token.id > 0){
 				token.domObject.setAttribute("class", "");
 				token.domObject.classList.add(token.className);
@@ -431,14 +518,14 @@ const FormatUtil = (() => {
 		tabSpace: (indent) => tabSpace(indent),
 		setIndents: (tokens) => setIndents(tokens),
 		setCounterparts: (tokens) => setCounterparts(tokens),
-		drawFormatted: (tokens) => drawFormatted(tokens),
+		drawFormattedHtml: (tokens) => drawFormattedHtml(tokens),
 		linkView: (id) => linkView(id),
 		unlinkView: () => unlinkView()
 	}
 })();
 
 const Parser = (() => {
-	const tokenize = (text) => {
+	/*private*/ const tokenize = (text) => {
 		let tokens = [];
 		let skip = false;
 
@@ -472,7 +559,7 @@ const Parser = (() => {
 		return tokens;
 	};
 	const fixJavaNotation = (tokens) => {
-		if(AppState.fixedEqualSign()){
+		if(Flags.isFixedEqualSign()){
 			const remove = [];
 			
 			for(let i = 1; i < tokens.length; i++){
@@ -492,47 +579,73 @@ const Parser = (() => {
 		}
 		return tokens;
 	}
-	const handleText = () => {
-		AppState.setErr(false);
-		AppState.setFixedEqualSign(false);
+	/*private*/ const setObjSize = (tokens) => {
+		DomProxy.renderObjSize(
+			tokens.reduce((acc, t) => t.isValue ? ++acc : acc, 0)
+		);
+	}
+	const parse = () => {
+		Flags.setErr(false);
 		
-		let origText = document.getElementById('textIn').value;
+		let text = DomProxy.getOrigTextValue();
 		
-		if(!origText.length){
+		if(!text.length){
 			return;
 		}
+		AppState.setOrigText(text);
 		
-		let text = origText.replaceAll(/[\\]["]/g, '"');
+		text = text.replaceAll(/[\\]["]/g, '"');
 		text = TextUtil.clearQuotedJson(text);
 		text = TextUtil.removeChars(text);
-		text = TextUtil.fixBadEqualSign(text);
 		
-		if(text === origText){
+		if(!Flags.isPowerOn() || text === AppState.getOrigText()){
+			text = TextUtil.fixBadEqualSign(text);
+			
 			let tokens = tokenize(text);
 			tokens = fixJavaNotation(tokens);
+			Flags.setFixedEqualSign(false);
+			
+			setObjSize(tokens);
+			
 			FormatUtil.setIndents(tokens);
 			FormatUtil.setCounterparts(tokens);
-			FormatUtil.drawFormatted(tokens);
-			AppState.currTokens = tokens;
+			FormatUtil.drawFormattedHtml(tokens);
+			AppState.setTokens(tokens);
 		}
 		else{
-			document.getElementById('textIn').value = text;
+			DomProxy.setOrigTextValue(text);
 		}
 	};
 	
 	return {
-		handleText: () => handleText()
+		parse: () => parse()
 	};
 })();
 
 // event handlers
 const clearFields = () => {
-	document.getElementById("textIn").value = "";
-	document.getElementById("formatOut").innerHTML = "";
+	DomProxy.clearFields();
+}
+
+const toggleHide = () => {
+	Flags.toggleHide();
+}
+
+const togglePowerButton = () => {
+	Flags.togglePowerButton();
+}
+
+const slideFormatted = () => {
+	let formattedString = AppState.getTokens().map(
+		t => t.formatted
+	).join("");
+	
+	DomProxy.setOrigTextValue(formattedString);
+	Parser.parse();
 }
 
 const stateSave = () => {
-	let text = document.getElementById('textIn').value;
+	const text = DomProxy.getOrigTextValue();
 	if(text.length){
 		AppState.push(text);
 	}
@@ -540,51 +653,43 @@ const stateSave = () => {
 
 const stateBack = () => {
 	if(AppState.haveState()){
-		document.getElementById('textIn').value = AppState.back();
-		Parser.handleText();
+		DomProxy.setOrigTextValue(AppState.back());
+		Parser.parse();
 	}
 }
 
 const stateForward = () => {
 	if(AppState.haveState()){
-		document.getElementById('textIn').value = AppState.forward();
-		Parser.handleText();
+		DomProxy.setOrigTextValue(AppState.forward());
+		Parser.parse();
 	}	
 }
 
 const stateTop = () => {
 	if(AppState.haveState()){
-		document.getElementById('textIn').value = AppState.top();
-		Parser.handleText();		
+		DomProxy.setOrigTextValue(AppState.top());
+		Parser.parse();		
 	}	
 }
 
 const statePop = () => {
 	if(AppState.haveState()){
-		document.getElementById('textIn').value = AppState.pop();
-		Parser.handleText();		
+		DomProxy.setOrigTextValue(AppState.pop());
+		Parser.parse();		
 	}	
 }
 
 const origToClipboard = () => {
-	document.getElementById('textIn').select();
-	document.execCommand("copy");
+	DomProxy.origToClipboard();
 }
 
 const escapedToClipboard = () => {
-	let text = document.getElementById('textIn').value;
-	text = text.replaceAll(/["]/g, '\\"');
-	DomProxy.toClipboard(text);
+	DomProxy.escapedToClipboard();
 }
 
 const formattedToClipboard = () => {
-	let formatted = [];
-	for(const token of AppState.currTokens){
-		formatted.push(token.formatted);
-	}
-	DomProxy.toClipboard(formatted.join(""));
+	DomProxy.formattedToClipboard();
 }
-
 
 /*
 Test Data Short:
