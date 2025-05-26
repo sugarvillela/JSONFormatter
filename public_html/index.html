@@ -65,7 +65,7 @@
 				border: none;
 				display: inline;
 			}
-			textarea#textIn{
+			textarea#origText{
 				color: white;
 				background: black;
 				caret-color: red;
@@ -87,6 +87,12 @@
 			label{
 				color: #8bb9dd;
 			}
+			.powerOn {
+				/*background: #90ee90;*/
+			}
+			.powerOff {
+				background: red;
+			}
 		</style>
     </head>
     <body>
@@ -97,7 +103,10 @@
             </div>
             <div class="col-xs-3">
 				<input type="submit" title="Clear Window" value="&#128465" onclick="clearFields()"/>
-				<input type="submit" title="Shrink Window" value="-" onclick="AppState.toggleHide()" id="buttonHide" />
+				<input type="submit" title="Shrink Window" value="-" onclick="toggleHide()" id="buttonHide" />
+				<input type="submit" title="Slide Formatted" value="&uarr;" onclick="slideFormatted()" />
+				<input type="submit" title="Scrunch" value="&#x23fb;" onclick="togglePowerButton()" id="buttonPower" class="powerOn" />
+				<div class="smallText" title="Object Size" id="objSize" ></div>
             </div>
             <div class="col-xs-3">
 				<input type="submit" title="Save" value="&#128190;State" onclick="stateSave()"/>
@@ -105,7 +114,7 @@
 				<input type="submit" title="Forward" value="&rsaquo;" onclick="stateForward()"/>
 				<input type="submit" title="Top" value="&rsaquo;&rsaquo;" onclick="stateTop()"/>
 				<input type="submit" title="Pop" value="*" onclick="statePop()"/>
-				<div class="smallText" title="Current Position" id="stateNum" ></div>
+				<div class="smallText" title="Current Position" id="pointerPos" ></div>
             </div>
             <div class="col-xs-3">
 				<input type="submit" title="Copy Original" value="&#128203;Orig" onclick="origToClipboard()"/>
@@ -118,8 +127,9 @@
           <div class="row">
             <div class="col-xs-12">
               <div class="form-group ">
-				<label title="Control+V Only" >Paste Here... </label>
-                <textarea class="form-control m20x p20x" id="textIn" rows="10" cols="80" onpaste="Parser.handleText()" onkeyup="Parser.handleText()"></textarea>
+                <textarea class="form-control m20x p20x" id="origText" rows="10" cols="80" 
+					onpaste="Parser.parse()" onkeyup="Parser.parse()" placeholder="Paste Here..."
+				></textarea>
               </div>
             </div>  
           </div>
