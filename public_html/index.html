@@ -87,10 +87,7 @@
 			label{
 				color: #8bb9dd;
 			}
-			.powerOn {
-				/*background: #90ee90;*/
-			}
-			.powerOff {
+			.bgRed {
 				background: red;
 			}
 		</style>
@@ -105,11 +102,12 @@
 				<input type="submit" title="Clear Window" value="&#128465" onclick="clearFields()"/>
 				<input type="submit" title="Shrink Window" value="-" onclick="toggleHide()" id="buttonHide" />
 				<input type="submit" title="Slide Formatted" value="&uarr;" onclick="slideFormatted()" />
-				<input type="submit" title="Scrunch" value="&#x23fb;" onclick="togglePowerButton()" id="buttonPower" class="powerOn" />
+				<input type="submit" title="Scrunch" value="&#x23fb;" onclick="togglePowerButton()" id="buttonPower" />
 				<div class="smallText" title="Object Size" id="objSize" ></div>
             </div>
             <div class="col-xs-3">
-				<input type="submit" title="Save" value="&#128190;State" onclick="stateSave()"/>
+				<input type="submit" title="Save" value="&#128190;" onclick="stateSave()" id="buttonSave" />
+				<input type="submit" title="Push" value="+" onclick="statePush()"/>
 				<input type="submit" title="Back" value="&lsaquo;" onclick="stateBack()"/>
 				<input type="submit" title="Forward" value="&rsaquo;" onclick="stateForward()"/>
 				<input type="submit" title="Top" value="&rsaquo;&rsaquo;" onclick="stateTop()"/>
@@ -128,7 +126,7 @@
             <div class="col-xs-12">
               <div class="form-group ">
                 <textarea class="form-control m20x p20x" id="origText" rows="10" cols="80" 
-					onpaste="Parser.parse()" onkeyup="Parser.parse()" placeholder="Paste Here..."
+					onkeyup="Parser.parse()" placeholder="Paste Here..."
 				></textarea>
               </div>
             </div>  
