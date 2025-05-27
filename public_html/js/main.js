@@ -108,6 +108,7 @@ const Flags = (() => {
 	let fixedEqualSign = false;
 	let hideWindow = false;
 	let powerOn = true;
+	let confirmSave = false;
 	
 	const toggleHide = () => {
 		hideWindow = !hideWindow;
@@ -117,10 +118,12 @@ const Flags = (() => {
 	const togglePowerButton = () => {
 		powerOn = !powerOn;
 		DomProxy.renderPowerButton(powerOn);
-		if(!powerOn){
-			DomProxy.setOrigTextValue(AppState.getOrigText());
-		}
 		Parser.parse();
+	}
+	
+	const setConfirmSave = (newState) => {
+		confirmSave = newState;
+		DomProxy.setConfirmSave(newState);
 	}
 	
 	return {
@@ -130,29 +133,16 @@ const Flags = (() => {
 		isFixedEqualSign: () => fixedEqualSign,
 		toggleHide: () => toggleHide(),
 		togglePowerButton: () => togglePowerButton(),
-		isPowerOn: () => powerOn
-	};
-})();
-
-const Stack = (() => {
-	return {
-		
+		isPowerOn: () => powerOn,
+		setConfirmSave: (newState) => setConfirmSave(newState),
+		isConfirmSave: () => confirmSave
 	};
 })();
 
 const AppState = (() => {
-	/*private*/ newStateObject = (text) => {
-		return {
-			text: text,
-			origText: ""
-		}
-	}
-	
 	const stack = [];		// strings
 	let currTokens = [];	// token objects
-	//let origText = "";
 	let pointer = 0;
-	let currState = newStateObject("");
 	
 	/*private*/ const incPointer = () => {
 		pointer = Math.min(pointer + 1, stack.length - 1);
@@ -162,23 +152,26 @@ const AppState = (() => {
 		pointer = Math.max(pointer - 1, 0);
 		DomProxy.renderPointerPos(pointer, stack.length);
 	}
+	const save = (text) => { 
+		stack[pointer] = text;
+	}
 	const push = (text) => { 
-		stack.push(newStateObject(text));
+		stack.push(text);
 		pointer = stack.length - 1;
 		DomProxy.renderPointerPos(pointer, stack.length);
 	}
 	const back = () => { 
 		decPointer();
-		return stack[pointer].text;
+		return stack[pointer];
 	}
 	const forward = () => { 
 		incPointer();
-		return stack[pointer].text;
+		return stack[pointer];
 	}
 	const top = () => { 
 		pointer = stack.length - 1;
 		DomProxy.renderPointerPos(pointer, stack.length);
-		return stack[pointer].text;
+		return stack[pointer];
 	}
 	const pop = () => {
 		stack.pop();
@@ -191,17 +184,16 @@ const AppState = (() => {
 	}
 	
 	return {
+		save: (text) => save(text),
 		push: (text) => push(text),
 		back: () => back(),
 		forward: () => forward(),
 		top: () => top(),
 		pop: () => pop(),
-		haveState: () => stack.length > 0,
+		haveState: () => !!stack.length,
 		setTokens: (newTokens) => currTokens = newTokens,
-		haveTokens: () => currTokens.length > 0,
+		haveTokens: () => !!currTokens.length,
 		getTokens: () => currTokens,
-		setOrigText: (text) => currState.origText = text,
-		getOrigText: () => currState.origText
 	};
 })();
 
@@ -244,9 +236,10 @@ const DomProxy = (() => {
 	const clearFields = () => {
 		document.getElementById("origText").value = "";
 		document.getElementById("formatOut").innerHTML = "";
+		document.getElementById("objSize").innerHTML = "";
 	}
 	const renderObjSize = (objSize) => {
-		let d = document.getElementById('objSize').innerHTML = (objSize)? `Size: ${objSize}` : "";
+		let d = document.getElementById('objSize').innerHTML = (objSize)? `(${objSize})` : "";
 	}
 	const renderPointerPos = (pointer, length) => {
 		document.getElementById("pointerPos").innerHTML = `${pointer+1}/${length}`;
@@ -257,7 +250,23 @@ const DomProxy = (() => {
 	const renderPowerButton = (powerOn) => {
 		const b = document.getElementById("buttonPower");
 		b.value = (powerOn)? `\u{23FB}` : `\u{23FC}`;
-		b.className = (powerOn)? "powerOn" : "powerOff";
+		b.className = (powerOn)? "" : "bgRed";
+	}
+	/*private*/ const clearOnOutClick = (e) => {
+		if(!document.getElementById("buttonSave").contains(e.target)){
+			console.log("reset")
+			Flags.setConfirmSave(false);
+		}
+	};
+	const renderSaveButton = (newState) => {
+		if(newState){
+			document.addEventListener("click", clearOnOutClick, false);
+			document.getElementById("buttonSave").className = "bgRed";
+		}
+		else{
+			document.getElementById("buttonSave").className = "";
+			document.removeEventListener("click", clearOnOutClick, false)
+		}
 	}
 	const hideWindow = (hide) => {
 		document.getElementById("origText").style.maxHeight = (hide)? "20px":"500px";
@@ -302,6 +311,7 @@ const DomProxy = (() => {
 		renderPointerPos: (pointer, length) => renderPointerPos(pointer, length),
 		renderHideButton: (hide) => renderHideButton(hide),
 		renderPowerButton: (powerOn) => renderPowerButton(powerOn),
+		renderSaveButton: (newState) => renderSaveButton(newState),
 		hideWindow: (hide) => hideWindow(hide),
 		origToClipboard: () => origToClipboard(),
 		escapedToClipboard: () => escapedToClipboard(),
@@ -587,32 +597,29 @@ const Parser = (() => {
 	const parse = () => {
 		Flags.setErr(false);
 		
-		let text = DomProxy.getOrigTextValue();
+		const origText = DomProxy.getOrigTextValue();
 		
-		if(!text.length){
+		if(!origText.length){
 			return;
 		}
-		AppState.setOrigText(text);
 		
-		text = text.replaceAll(/[\\]["]/g, '"');
+		let text = origText.replaceAll(/[\\]["]/g, '"');
 		text = TextUtil.clearQuotedJson(text);
 		text = TextUtil.removeChars(text);
+		text = TextUtil.fixBadEqualSign(text);
 		
-		if(!Flags.isPowerOn() || text === AppState.getOrigText()){
-			text = TextUtil.fixBadEqualSign(text);
-			
-			let tokens = tokenize(text);
-			tokens = fixJavaNotation(tokens);
-			Flags.setFixedEqualSign(false);
-			
-			setObjSize(tokens);
-			
-			FormatUtil.setIndents(tokens);
-			FormatUtil.setCounterparts(tokens);
-			FormatUtil.drawFormattedHtml(tokens);
-			AppState.setTokens(tokens);
-		}
-		else{
+		let tokens = tokenize(text);
+		tokens = fixJavaNotation(tokens);
+		Flags.setFixedEqualSign(false);
+		
+		setObjSize(tokens);
+		
+		FormatUtil.setIndents(tokens);
+		FormatUtil.setCounterparts(tokens);
+		FormatUtil.drawFormattedHtml(tokens);
+		AppState.setTokens(tokens);
+		
+		if(Flags.isPowerOn()){
 			DomProxy.setOrigTextValue(text);
 		}
 	};
@@ -645,6 +652,28 @@ const slideFormatted = () => {
 }
 
 const stateSave = () => {
+	const text = DomProxy.getOrigTextValue();
+	
+	if(text.length){
+		if(AppState.haveState()){
+			if(Flags.isConfirmSave()){
+				Flags.setConfirmSave(false);
+				AppState.save(text);
+			}
+			else {
+				Flags.setConfirmSave(true);
+			}
+		}
+		else {
+			AppState.push(text);
+		}
+	}
+	else{
+		Flags.setConfirmSave(false);
+	}
+}
+
+const statePush = () => {
 	const text = DomProxy.getOrigTextValue();
 	if(text.length){
 		AppState.push(text);
