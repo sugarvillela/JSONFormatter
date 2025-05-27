@@ -123,7 +123,7 @@ const Flags = (() => {
 	
 	const setConfirmSave = (newState) => {
 		confirmSave = newState;
-		DomProxy.setConfirmSave(newState);
+		DomProxy.renderSaveButton(newState);
 	}
 	
 	return {
@@ -259,12 +259,15 @@ const DomProxy = (() => {
 		}
 	};
 	const renderSaveButton = (newState) => {
+		const buttonSave = document.getElementById("buttonSave");
 		if(newState){
+			buttonSave.className = "bgRed";
+			buttonSave.title = "Overwrite?";
 			document.addEventListener("click", clearOnOutClick, false);
-			document.getElementById("buttonSave").className = "bgRed";
 		}
 		else{
-			document.getElementById("buttonSave").className = "";
+			buttonSave.className = "";
+			buttonSave.title = "Save";
 			document.removeEventListener("click", clearOnOutClick, false)
 		}
 	}
